@@ -1,0 +1,39 @@
+# LinkedIn Automation Framework Configuration
+# This is an example configuration file showing all available settings
+
+browser:
+  headless: true
+  user_agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+  viewport_width: 1920
+  viewport_height: 1080
+  flags:
+    - "--no-sandbox"
+    - "--disable-blink-features=AutomationControlled"
+    - "--disable-web-security"
+  cookie_path: "./cookies.json"
+
+stealth:
+  min_delay: 500ms
+  max_delay: 2s
+  typing_min_delay: 50ms
+  typing_max_delay: 200ms
+  scroll_min_delay: 100ms
+  scroll_max_delay: 500ms
+  respect_business_hours: true
+  cooldown_period: 5m
+
+rate_limit:
+  connections_per_hour: 10
+  messages_per_hour: 5
+  searches_per_hour: 20
+  cooldown_between: 30s
+
+storage:
+  type: "sqlite"  # "sqlite" or "json"
+  path: "./data"
+  database: "linkedin_automation.db"
+
+logging:
+  level: "info"    # "debug", "info", "warn", "error"
+  format: "json"   # "json" or "text"
+  output: "stdout" # "stdout", "stderr", or file path

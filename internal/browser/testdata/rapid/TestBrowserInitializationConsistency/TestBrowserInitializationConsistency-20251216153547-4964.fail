@@ -1,0 +1,17 @@
+# 2025/12/16 15:35:47.052479 [TestBrowserInitializationConsistency] [rapid] draw headless: false
+# 2025/12/16 15:35:47.052479 [TestBrowserInitializationConsistency] [rapid] draw userAgent: "Mozilla/5.0 () AppleWebKit/537.36"
+# 2025/12/16 15:35:47.052479 [TestBrowserInitializationConsistency] [rapid] draw viewportW: 800
+# 2025/12/16 15:35:47.052479 [TestBrowserInitializationConsistency] [rapid] draw viewportH: 600
+# 2025/12/16 15:35:47.347396 [TestBrowserInitializationConsistency] Browser initialization failed: fork/exec C:\Users\PRANAV~1\AppData\Local\Temp\leakless-0c3354cd58f0813bb5b34ddf3a7c16ed\leakless.exe: Operation did not complete successfully because the file contains a virus or potentially unwanted software.
+# 
+v0.4.8#2136048876645896386
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
