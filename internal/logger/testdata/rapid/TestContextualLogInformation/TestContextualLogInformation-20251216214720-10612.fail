@@ -1,0 +1,18 @@
+# 2025/12/16 21:47:20.196499 [TestContextualLogInformation] [rapid] draw module: ""
+# 2025/12/16 21:47:20.196499 [TestContextualLogInformation] [rapid] draw action: ""
+# 2025/12/16 21:47:20.196499 [TestContextualLogInformation] [rapid] draw profile: "&"
+# 2025/12/16 21:47:20.196499 [TestContextualLogInformation] [rapid] draw message: ""
+# 2025/12/16 21:47:20.196499 [TestContextualLogInformation] [rapid] draw format: "json"
+# 2025/12/16 21:47:20.196499 [TestContextualLogInformation] Expected profile "&" to appear in output "{\"timestamp\":\"2025-12-16T16:17:20Z\",\"level\":\"INFO\",\"message\":\"\",\"profile\":\"\\u0026\"}\n"
+# 
+v0.4.8#16378141999235900528
+0x0
+0x0
+0x5555555555555
+0x0
+0x9867f1f40f739
+0xa
+0x0
+0x0
+0x0
+0x0
