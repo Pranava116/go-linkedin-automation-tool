@@ -1,0 +1,35 @@
+# 2025/12/19 16:32:36.205591 [TestHumanMouseMovementPatterns] [rapid] draw startX: 174.6346798037129
+# 2025/12/19 16:32:36.205591 [TestHumanMouseMovementPatterns] [rapid] draw startY: 3.694285417811855
+# 2025/12/19 16:32:36.205591 [TestHumanMouseMovementPatterns] [rapid] draw endX: 2.3243980407714844
+# 2025/12/19 16:32:36.205591 [TestHumanMouseMovementPatterns] [rapid] draw endY: 3.559852636553809e-270
+# 2025/12/19 16:32:36.205591 [TestHumanMouseMovementPatterns] Path appears too straight: path length 174.892434 vs direct distance 172.349879 (tolerance: 17.234988)
+# 
+v0.4.8#1064804464666704559
+0x98fdbd3ad175b
+0x17ff28873569c
+0x132a123abda45a
+0x7
+0x2e
+0x3a
+0x144f4c050c1e
+0x5df7cb864b65d
+0x71d278b82b12b
+0xec1caa4400d8
+0x1
+0x1
+0x2e
+0x58de5835cbba6
+0x4ea7abd9205d
+0x75e01d95e823f
+0x6b2bd882b3bae
+0x1
+0x0
+0x12
+0x2985eaf8327ed
+0xd3a934f959c75
+0x19976adb6132bd
+0x1e0a46bb04d150
+0x37f
+0x0
+0x32
+0xe17252abd3590

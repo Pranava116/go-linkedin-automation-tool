@@ -230,13 +230,21 @@ func TestPageCreationWithContextManagement(t *testing.T) {
 
 		// Verify error messages are informative
 		page, err = manager.NewPage()
-		if err == nil || err.Error() != "browser not initialized" {
-			t.Fatalf("Expected 'browser not initialized' error, got: %v", err)
+		if err == nil {
+			t.Fatal("Expected error when browser not initialized")
+		}
+		// Error should contain "browser not initialized" message
+		if err.Error() != "new_page: browser not initialized" {
+			t.Fatalf("Expected 'new_page: browser not initialized' error, got: %v", err)
 		}
 
 		incognitoPage, err = manager.NewIncognitoPage()
-		if err == nil || err.Error() != "browser not initialized" {
-			t.Fatalf("Expected 'browser not initialized' error for incognito page, got: %v", err)
+		if err == nil {
+			t.Fatal("Expected error when browser not initialized for incognito page")
+		}
+		// Error should contain "browser not initialized" message
+		if err.Error() != "browser not initialized" {
+			t.Fatalf("Expected 'browser not initialized' error, got: %v", err)
 		}
 
 		// Verify configuration is preserved

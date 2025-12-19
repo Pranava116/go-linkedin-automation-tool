@@ -1,0 +1,13 @@
+# 2025/12/19 16:21:47.804674 [TestPageCreationWithContextManagement] [rapid] draw headless: false
+# 2025/12/19 16:21:47.804674 [TestPageCreationWithContextManagement] [rapid] draw viewportW: 800
+# 2025/12/19 16:21:47.804674 [TestPageCreationWithContextManagement] [rapid] draw viewportH: 600
+# 2025/12/19 16:21:47.804674 [TestPageCreationWithContextManagement] Expected 'browser not initialized' error, got: new_page: browser not initialized
+# 
+v0.4.8#424631581618666443
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0

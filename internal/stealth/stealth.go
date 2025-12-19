@@ -289,28 +289,44 @@ func (sm *StealthManager) ConfigureFingerprint(browser *rod.Browser) error {
 			}
 		}
 
-		// Mask webdriver property
+		// Mask webdriver property (best effort - may fail on newer Chrome versions)
 		if sm.fingerprint.MaskWebDriver {
 			_, err := page.Eval(`() => {
-				Object.defineProperty(navigator, 'webdriver', {
-					get: () => undefined,
-				});
+				try {
+					// Try to mask webdriver property
+					Object.defineProperty(navigator, 'webdriver', {
+						get: () => undefined,
+						configurable: true
+					});
+				} catch (e) {
+					// Ignore webdriver masking errors - not critical
+					console.log('Webdriver masking failed (expected on newer Chrome)');
+				}
 				
-				// Also mask other automation indicators
-				window.chrome = {
-					runtime: {},
-				};
-				
-				Object.defineProperty(navigator, 'plugins', {
-					get: () => [1, 2, 3, 4, 5],
-				});
-				
-				Object.defineProperty(navigator, 'languages', {
-					get: () => ['en-US', 'en'],
-				});
+				try {
+					// Also mask other automation indicators
+					window.chrome = {
+						runtime: {},
+					};
+					
+					Object.defineProperty(navigator, 'plugins', {
+						get: () => [1, 2, 3, 4, 5],
+						configurable: true
+					});
+					
+					Object.defineProperty(navigator, 'languages', {
+						get: () => ['en-US', 'en'],
+						configurable: true
+					});
+				} catch (e) {
+					// Ignore other masking errors - not critical
+					console.log('Additional fingerprint masking failed');
+				}
 			}`)
+			// Don't return error for fingerprint masking failures - they're not critical
 			if err != nil {
-				return fmt.Errorf("failed to mask webdriver property: %w", err)
+				// Just log a warning and continue
+				fmt.Printf("Warning: fingerprint masking failed (expected on newer Chrome): %v\n", err)
 			}
 		}
 	}

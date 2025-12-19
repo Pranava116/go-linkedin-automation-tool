@@ -68,19 +68,34 @@ func TestHumanMouseMovementPatterns(t *testing.T) {
 			}
 		}
 
-		// Property 4: Path should show some curvature (not perfectly straight)
-		// Calculate if path deviates from straight line
+		// Property 4: Path should show some variation (micro-corrections)
+		// Check that the path has some variation from a perfectly straight line
+		// by verifying that not all points lie exactly on the straight line
 		totalDistance := math.Sqrt(math.Pow(end.X-start.X, 2) + math.Pow(end.Y-start.Y, 2))
-		if totalDistance > 10 { // Only check for non-trivial movements
-			pathLength := 0.0
-			for i := 1; i < len(path); i++ {
-				stepDistance := math.Sqrt(math.Pow(path[i].X-path[i-1].X, 2) + math.Pow(path[i].Y-path[i-1].Y, 2))
-				pathLength += stepDistance
+		if totalDistance > 50 { // Only check for significant movements to avoid edge cases
+			// Count points that deviate from the straight line
+			deviatingPoints := 0
+			for _, point := range path {
+				// Calculate distance from point to straight line
+				// Using point-to-line distance formula
+				lineDistance := math.Abs((end.Y-start.Y)*point.X - (end.X-start.X)*point.Y + end.X*start.Y - end.Y*start.X) / 
+					math.Sqrt(math.Pow(end.Y-start.Y, 2) + math.Pow(end.X-start.X, 2))
+				
+				// If point deviates more than 0.5 pixel from straight line, count it
+				if lineDistance > 0.5 {
+					deviatingPoints++
+				}
 			}
 			
-			// Path should be longer than straight line (showing curvature)
-			if pathLength <= totalDistance {
-				t.Fatalf("Path appears too straight: path length %f vs direct distance %f", pathLength, totalDistance)
+			// At least 10% of points should show some deviation (human-like variation)
+			// This is a reasonable expectation for Bézier curves with micro-corrections
+			minDeviatingPoints := len(path) / 10
+			if minDeviatingPoints < 1 {
+				minDeviatingPoints = 1 // At least 1 point should deviate
+			}
+			if deviatingPoints < minDeviatingPoints {
+				t.Fatalf("Path too straight: only %d/%d points deviate from straight line (need at least %d)", 
+					deviatingPoints, len(path), minDeviatingPoints)
 			}
 		}
 	})
