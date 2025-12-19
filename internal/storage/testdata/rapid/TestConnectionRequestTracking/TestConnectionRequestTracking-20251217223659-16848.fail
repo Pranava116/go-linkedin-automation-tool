@@ -1,0 +1,12 @@
+# 2025/12/17 22:36:59.226209 [TestConnectionRequestTracking] [rapid] draw profile_url: ""
+# 2025/12/17 22:36:59.226209 [TestConnectionRequestTracking] [rapid] draw profile_name: ""
+# 2025/12/17 22:36:59.226209 [TestConnectionRequestTracking] [rapid] draw note: ""
+# 2025/12/17 22:36:59.226209 [TestConnectionRequestTracking] [rapid] draw status: "pending"
+# 2025/12/17 22:36:59.226759 [TestConnectionRequestTracking] failed to create storage: failed to open database: sql: unknown driver "sqlite3" (forgotten import?)
+# 
+v0.4.8#8804785505952776461
+0x0
+0x0
+0x0
+0x0
+0x0

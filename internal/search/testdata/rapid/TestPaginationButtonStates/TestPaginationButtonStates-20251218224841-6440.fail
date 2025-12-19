@@ -1,0 +1,24 @@
+# 2025/12/18 22:48:41.766333 [TestPaginationButtonStates] 
+# 	Error Trace:	C:/Users/Pranava G Rao/Desktop/Go/SubSpace/internal/search/search_test.go:414
+# 	            				C:/Users/Pranava G Rao/go/pkg/mod/pgregory.net/rapid@v1.2.0/engine.go:371
+# 	            				C:/Users/Pranava G Rao/go/pkg/mod/pgregory.net/rapid@v1.2.0/engine.go:380
+# 	            				C:/Users/Pranava G Rao/go/pkg/mod/pgregory.net/rapid@v1.2.0/engine.go:205
+# 	            				C:/Users/Pranava G Rao/go/pkg/mod/pgregory.net/rapid@v1.2.0/engine.go:120
+# 	            				C:/Users/Pranava G Rao/Desktop/Go/SubSpace/internal/search/search_test.go:400
+# 	            				C:/Program Files/Go/src/runtime/asm_amd64.s:1693
+# 	Error:      	".artdeco-pagination__button--next" does not contain "Next"
+# 	Test:       	TestPaginationButtonStates
+# 	Messages:   	Pagination selector should reference Next functionality
+# 2025/12/18 22:48:41.766333 [TestPaginationButtonStates] 
+# 	Error Trace:	C:/Users/Pranava G Rao/Desktop/Go/SubSpace/internal/search/search_test.go:414
+# 	            				C:/Users/Pranava G Rao/go/pkg/mod/pgregory.net/rapid@v1.2.0/engine.go:371
+# 	            				C:/Users/Pranava G Rao/go/pkg/mod/pgregory.net/rapid@v1.2.0/engine.go:380
+# 	            				C:/Users/Pranava G Rao/go/pkg/mod/pgregory.net/rapid@v1.2.0/engine.go:205
+# 	            				C:/Users/Pranava G Rao/go/pkg/mod/pgregory.net/rapid@v1.2.0/engine.go:120
+# 	            				C:/Users/Pranava G Rao/Desktop/Go/SubSpace/internal/search/search_test.go:400
+# 	            				C:/Program Files/Go/src/runtime/asm_amd64.s:1693
+# 	Error:      	".pv-s-profile-actions--next" does not contain "Next"
+# 	Test:       	TestPaginationButtonStates
+# 	Messages:   	Pagination selector should reference Next functionality
+# 
+v0.4.8#9362063104129813618

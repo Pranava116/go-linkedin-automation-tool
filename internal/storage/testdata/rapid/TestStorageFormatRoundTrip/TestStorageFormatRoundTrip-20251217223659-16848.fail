@@ -1,0 +1,36 @@
+# 2025/12/17 22:36:59.413246 [TestStorageFormatRoundTrip] [rapid] draw profile_url: ""
+# 2025/12/17 22:36:59.413246 [TestStorageFormatRoundTrip] [rapid] draw profile_name: ""
+# 2025/12/17 22:36:59.413246 [TestStorageFormatRoundTrip] [rapid] draw note: ""
+# 2025/12/17 22:36:59.413246 [TestStorageFormatRoundTrip] [rapid] draw status: "pending"
+# 2025/12/17 22:36:59.413246 [TestStorageFormatRoundTrip] [rapid] draw recipient_url: ""
+# 2025/12/17 22:36:59.413246 [TestStorageFormatRoundTrip] [rapid] draw template: ""
+# 2025/12/17 22:36:59.413246 [TestStorageFormatRoundTrip] [rapid] draw content: ""
+# 2025/12/17 22:36:59.413246 [TestStorageFormatRoundTrip] [rapid] draw response: ""
+# 2025/12/17 22:36:59.413246 [TestStorageFormatRoundTrip] [rapid] draw url: ""
+# 2025/12/17 22:36:59.413246 [TestStorageFormatRoundTrip] [rapid] draw name: ""
+# 2025/12/17 22:36:59.413246 [TestStorageFormatRoundTrip] [rapid] draw title: ""
+# 2025/12/17 22:36:59.413246 [TestStorageFormatRoundTrip] [rapid] draw company: ""
+# 2025/12/17 22:36:59.413246 [TestStorageFormatRoundTrip] [rapid] draw location: ""
+# 2025/12/17 22:36:59.413246 [TestStorageFormatRoundTrip] [rapid] draw mutual: 0
+# 2025/12/17 22:36:59.413246 [TestStorageFormatRoundTrip] [rapid] draw premium: false
+# 2025/12/17 22:36:59.413907 [TestStorageFormatRoundTrip] failed to create storage: failed to open database: sql: unknown driver "sqlite3" (forgotten import?)
+# 
+v0.4.8#4369728872666310615
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
