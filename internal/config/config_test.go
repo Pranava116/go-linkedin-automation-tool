@@ -335,3 +335,196 @@ func TestConfigurationValidationWithDefaults(t *testing.T) {
 		}
 	})
 }
+
+// **Feature: linkedin-automation-framework, Property 48: Stealth parameter configuration**
+// **Validates: Requirements 9.4**
+func TestStealthParameterConfiguration(t *testing.T) {
+	rapid.Check(t, func(rt *rapid.T) {
+		manager := NewManager()
+		
+		// Generate stealth configuration parameters
+		minDelay := time.Duration(rapid.IntRange(100, 1000).Draw(rt, "min_delay")) * time.Millisecond
+		maxDelay := time.Duration(rapid.IntRange(1001, 5000).Draw(rt, "max_delay")) * time.Millisecond
+		typingMinDelay := time.Duration(rapid.IntRange(10, 100).Draw(rt, "typing_min_delay")) * time.Millisecond
+		typingMaxDelay := time.Duration(rapid.IntRange(101, 500).Draw(rt, "typing_max_delay")) * time.Millisecond
+		scrollMinDelay := time.Duration(rapid.IntRange(50, 200).Draw(rt, "scroll_min_delay")) * time.Millisecond
+		scrollMaxDelay := time.Duration(rapid.IntRange(201, 1000).Draw(rt, "scroll_max_delay")) * time.Millisecond
+		businessHours := rapid.Bool().Draw(rt, "business_hours")
+		cooldownPeriod := time.Duration(rapid.IntRange(1, 10).Draw(rt, "cooldown_period")) * time.Minute
+		
+		// Create configuration with generated stealth parameters
+		config := &Config{
+			Browser: BrowserConfig{
+				Headless:   true,
+				UserAgent:  "Mozilla/5.0 Test Agent",
+				ViewportW:  1920,
+				ViewportH:  1080,
+				CookiePath: "./cookies.json",
+			},
+			Stealth: StealthConfig{
+				MinDelay:        minDelay,
+				MaxDelay:        maxDelay,
+				TypingMinDelay:  typingMinDelay,
+				TypingMaxDelay:  typingMaxDelay,
+				ScrollMinDelay:  scrollMinDelay,
+				ScrollMaxDelay:  scrollMaxDelay,
+				BusinessHours:   businessHours,
+				CooldownPeriod:  cooldownPeriod,
+			},
+			RateLimit: RateLimitConfig{
+				ConnectionsPerHour: 10,
+				MessagesPerHour:    5,
+				SearchesPerHour:    20,
+				CooldownBetween:    30 * time.Second,
+			},
+			Storage: StorageConfig{
+				Type:     "sqlite",
+				Path:     "./data",
+				Database: "test.db",
+			},
+			Logging: LoggingConfig{
+				Level:  "info",
+				Format: "json",
+				Output: "stdout",
+			},
+		}
+		
+		// Validate the configuration
+		err := manager.Validate(config)
+		if err != nil {
+			rt.Fatalf("Configuration validation failed: %v", err)
+		}
+		
+		// Verify that all stealth parameters are preserved and configurable
+		if config.Stealth.MinDelay != minDelay {
+			rt.Errorf("MinDelay not preserved: expected %v, got %v", minDelay, config.Stealth.MinDelay)
+		}
+		if config.Stealth.MaxDelay != maxDelay {
+			rt.Errorf("MaxDelay not preserved: expected %v, got %v", maxDelay, config.Stealth.MaxDelay)
+		}
+		if config.Stealth.TypingMinDelay != typingMinDelay {
+			rt.Errorf("TypingMinDelay not preserved: expected %v, got %v", typingMinDelay, config.Stealth.TypingMinDelay)
+		}
+		if config.Stealth.TypingMaxDelay != typingMaxDelay {
+			rt.Errorf("TypingMaxDelay not preserved: expected %v, got %v", typingMaxDelay, config.Stealth.TypingMaxDelay)
+		}
+		if config.Stealth.ScrollMinDelay != scrollMinDelay {
+			rt.Errorf("ScrollMinDelay not preserved: expected %v, got %v", scrollMinDelay, config.Stealth.ScrollMinDelay)
+		}
+		if config.Stealth.ScrollMaxDelay != scrollMaxDelay {
+			rt.Errorf("ScrollMaxDelay not preserved: expected %v, got %v", scrollMaxDelay, config.Stealth.ScrollMaxDelay)
+		}
+		if config.Stealth.BusinessHours != businessHours {
+			rt.Errorf("BusinessHours not preserved: expected %v, got %v", businessHours, config.Stealth.BusinessHours)
+		}
+		if config.Stealth.CooldownPeriod != cooldownPeriod {
+			rt.Errorf("CooldownPeriod not preserved: expected %v, got %v", cooldownPeriod, config.Stealth.CooldownPeriod)
+		}
+		
+		// Verify that timing constraints are respected (max > min)
+		if config.Stealth.MaxDelay <= config.Stealth.MinDelay {
+			rt.Errorf("MaxDelay (%v) should be greater than MinDelay (%v)", config.Stealth.MaxDelay, config.Stealth.MinDelay)
+		}
+		if config.Stealth.TypingMaxDelay <= config.Stealth.TypingMinDelay {
+			rt.Errorf("TypingMaxDelay (%v) should be greater than TypingMinDelay (%v)", config.Stealth.TypingMaxDelay, config.Stealth.TypingMinDelay)
+		}
+		if config.Stealth.ScrollMaxDelay <= config.Stealth.ScrollMinDelay {
+			rt.Errorf("ScrollMaxDelay (%v) should be greater than ScrollMinDelay (%v)", config.Stealth.ScrollMaxDelay, config.Stealth.ScrollMinDelay)
+		}
+	})
+}
+// **Feature: linkedin-automation-framework, Property 49: Rate limit parameter configuration**
+// **Validates: Requirements 9.5**
+func TestRateLimitParameterConfiguration(t *testing.T) {
+	rapid.Check(t, func(rt *rapid.T) {
+		manager := NewManager()
+		
+		// Generate rate limit configuration parameters
+		connectionsPerHour := rapid.IntRange(1, 100).Draw(rt, "connections_per_hour")
+		messagesPerHour := rapid.IntRange(1, 50).Draw(rt, "messages_per_hour")
+		searchesPerHour := rapid.IntRange(1, 200).Draw(rt, "searches_per_hour")
+		cooldownBetween := time.Duration(rapid.IntRange(10, 600).Draw(rt, "cooldown_between")) * time.Second
+		
+		// Create configuration with generated rate limit parameters
+		config := &Config{
+			Browser: BrowserConfig{
+				Headless:   true,
+				UserAgent:  "Mozilla/5.0 Test Agent",
+				ViewportW:  1920,
+				ViewportH:  1080,
+				CookiePath: "./cookies.json",
+			},
+			Stealth: StealthConfig{
+				MinDelay:        500 * time.Millisecond,
+				MaxDelay:        2 * time.Second,
+				TypingMinDelay:  50 * time.Millisecond,
+				TypingMaxDelay:  200 * time.Millisecond,
+				ScrollMinDelay:  100 * time.Millisecond,
+				ScrollMaxDelay:  500 * time.Millisecond,
+				BusinessHours:   true,
+				CooldownPeriod:  5 * time.Minute,
+			},
+			RateLimit: RateLimitConfig{
+				ConnectionsPerHour: connectionsPerHour,
+				MessagesPerHour:    messagesPerHour,
+				SearchesPerHour:    searchesPerHour,
+				CooldownBetween:    cooldownBetween,
+			},
+			Storage: StorageConfig{
+				Type:     "sqlite",
+				Path:     "./data",
+				Database: "test.db",
+			},
+			Logging: LoggingConfig{
+				Level:  "info",
+				Format: "json",
+				Output: "stdout",
+			},
+		}
+		
+		// Validate the configuration
+		err := manager.Validate(config)
+		if err != nil {
+			rt.Fatalf("Configuration validation failed: %v", err)
+		}
+		
+		// Verify that all rate limit parameters are preserved and configurable
+		if config.RateLimit.ConnectionsPerHour != connectionsPerHour {
+			rt.Errorf("ConnectionsPerHour not preserved: expected %d, got %d", connectionsPerHour, config.RateLimit.ConnectionsPerHour)
+		}
+		if config.RateLimit.MessagesPerHour != messagesPerHour {
+			rt.Errorf("MessagesPerHour not preserved: expected %d, got %d", messagesPerHour, config.RateLimit.MessagesPerHour)
+		}
+		if config.RateLimit.SearchesPerHour != searchesPerHour {
+			rt.Errorf("SearchesPerHour not preserved: expected %d, got %d", searchesPerHour, config.RateLimit.SearchesPerHour)
+		}
+		if config.RateLimit.CooldownBetween != cooldownBetween {
+			rt.Errorf("CooldownBetween not preserved: expected %v, got %v", cooldownBetween, config.RateLimit.CooldownBetween)
+		}
+		
+		// Verify that rate limit parameters are positive values
+		if config.RateLimit.ConnectionsPerHour <= 0 {
+			rt.Errorf("ConnectionsPerHour should be positive: got %d", config.RateLimit.ConnectionsPerHour)
+		}
+		if config.RateLimit.MessagesPerHour <= 0 {
+			rt.Errorf("MessagesPerHour should be positive: got %d", config.RateLimit.MessagesPerHour)
+		}
+		if config.RateLimit.SearchesPerHour <= 0 {
+			rt.Errorf("SearchesPerHour should be positive: got %d", config.RateLimit.SearchesPerHour)
+		}
+		if config.RateLimit.CooldownBetween <= 0 {
+			rt.Errorf("CooldownBetween should be positive: got %v", config.RateLimit.CooldownBetween)
+		}
+		
+		// Verify that rate limits are reasonable (not too high to avoid abuse)
+		if config.RateLimit.ConnectionsPerHour > 100 {
+			rt.Errorf("ConnectionsPerHour should be reasonable: got %d", config.RateLimit.ConnectionsPerHour)
+		}
+		if config.RateLimit.MessagesPerHour > 50 {
+			rt.Errorf("MessagesPerHour should be reasonable: got %d", config.RateLimit.MessagesPerHour)
+		}
+		if config.RateLimit.SearchesPerHour > 200 {
+			rt.Errorf("SearchesPerHour should be reasonable: got %d", config.RateLimit.SearchesPerHour)
+		}
+	})
+}

@@ -8,6 +8,8 @@ import (
 
 	"github.com/go-rod/rod"
 	"github.com/go-rod/rod/lib/proto"
+	
+	"linkedin-automation-framework/internal/errors"
 )
 
 // Authenticator interface for LinkedIn authentication
@@ -37,6 +39,8 @@ type AuthManager struct {
 	credentials   Credentials
 	stealthTyper  StealthTyper
 	cookieManager CookieManager
+	errorHandler  *errors.RodErrorHandler
+	recovery      *errors.GracefulErrorRecovery
 }
 
 // CookieManager interface for cookie persistence
@@ -50,6 +54,8 @@ func NewAuthManager(stealthTyper StealthTyper, cookieManager CookieManager) *Aut
 	return &AuthManager{
 		stealthTyper:  stealthTyper,
 		cookieManager: cookieManager,
+		errorHandler:  errors.NewRodErrorHandler(30 * time.Second),
+		recovery:      errors.NewGracefulErrorRecovery(nil),
 	}
 }
 
@@ -75,101 +81,91 @@ func (am *AuthManager) LoadCredentials() error {
 
 // Login performs LinkedIn login using Rod navigation and stealth typing
 func (am *AuthManager) Login(ctx context.Context, page *rod.Page) error {
-	// Navigate to LinkedIn login page
-	err := page.Navigate("https://www.linkedin.com/login")
-	if err != nil {
-		return fmt.Errorf("failed to navigate to login page: %w", err)
-	}
-
-	// Wait for page to load
-	err = page.WaitLoad()
-	if err != nil {
-		return fmt.Errorf("failed to wait for page load: %w", err)
-	}
-
-	// Find username field
-	usernameField, err := page.Timeout(10 * time.Second).Element("#username")
-	if err != nil {
-		return fmt.Errorf("failed to find username field: %w", err)
-	}
-
-	// Use stealth typing to fill username
-	if am.stealthTyper != nil {
-		err = am.stealthTyper.HumanType(ctx, usernameField, am.credentials.Username)
-		if err != nil {
-			return fmt.Errorf("failed to type username: %w", err)
+	return am.recovery.SafeExecute("login", func() error {
+		if page == nil {
+			return errors.NewError(errors.ErrorTypeConfiguration, "login", 
+				"page cannot be nil", nil)
 		}
-	} else {
-		// Fallback to regular input
-		err = usernameField.Input(am.credentials.Username)
-		if err != nil {
-			return fmt.Errorf("failed to input username: %w", err)
-		}
-	}
 
-	// Small delay between fields
-	if am.stealthTyper != nil {
-		am.stealthTyper.RandomDelay(500*time.Millisecond, 1500*time.Millisecond)
-	}
+		retryConfig := errors.DefaultRetryConfig()
+		retryConfig.MaxAttempts = 2 // Login should not be retried too many times
+		retryConfig.InitialDelay = 5 * time.Second
+		
+		return errors.RetryWithBackoff(ctx, retryConfig, func(ctx context.Context, attempt int) error {
+			// Navigate to LinkedIn login page
+			err := am.errorHandler.SafeNavigation(ctx, page, "https://www.linkedin.com/login")
+			if err != nil {
+				return err
+			}
 
-	// Find password field
-	passwordField, err := page.Timeout(10 * time.Second).Element("#password")
-	if err != nil {
-		return fmt.Errorf("failed to find password field: %w", err)
-	}
+			// Find and fill username field
+			err = am.errorHandler.SafeElementOperation(ctx, page, "#username", func(element *rod.Element) error {
+				if am.stealthTyper != nil {
+					return am.stealthTyper.HumanType(ctx, element, am.credentials.Username)
+				}
+				return element.Input(am.credentials.Username)
+			})
+			if err != nil {
+				return err
+			}
 
-	// Use stealth typing to fill password
-	if am.stealthTyper != nil {
-		err = am.stealthTyper.HumanType(ctx, passwordField, am.credentials.Password)
-		if err != nil {
-			return fmt.Errorf("failed to type password: %w", err)
-		}
-	} else {
-		// Fallback to regular input
-		err = passwordField.Input(am.credentials.Password)
-		if err != nil {
-			return fmt.Errorf("failed to input password: %w", err)
-		}
-	}
+			// Small delay between fields
+			if am.stealthTyper != nil {
+				am.stealthTyper.RandomDelay(500*time.Millisecond, 1500*time.Millisecond)
+			}
 
-	// Small delay before clicking submit
-	if am.stealthTyper != nil {
-		am.stealthTyper.RandomDelay(500*time.Millisecond, 1500*time.Millisecond)
-	}
+			// Find and fill password field
+			err = am.errorHandler.SafeElementOperation(ctx, page, "#password", func(element *rod.Element) error {
+				if am.stealthTyper != nil {
+					return am.stealthTyper.HumanType(ctx, element, am.credentials.Password)
+				}
+				return element.Input(am.credentials.Password)
+			})
+			if err != nil {
+				return err
+			}
 
-	// Find and click submit button
-	submitButton, err := page.Timeout(10 * time.Second).Element("button[type='submit']")
-	if err != nil {
-		return fmt.Errorf("failed to find submit button: %w", err)
-	}
+			// Small delay before clicking submit
+			if am.stealthTyper != nil {
+				am.stealthTyper.RandomDelay(500*time.Millisecond, 1500*time.Millisecond)
+			}
 
-	err = submitButton.Click(proto.InputMouseButtonLeft, 1)
-	if err != nil {
-		return fmt.Errorf("failed to click submit button: %w", err)
-	}
+			// Find and click submit button
+			err = am.errorHandler.SafeElementOperation(ctx, page, "button[type='submit']", func(element *rod.Element) error {
+				return element.Click(proto.InputMouseButtonLeft, 1)
+			})
+			if err != nil {
+				return err
+			}
 
-	// Wait for navigation after login
-	time.Sleep(3 * time.Second)
+			// Wait for navigation after login
+			time.Sleep(3 * time.Second)
 
-	// Check if login was successful
-	loggedIn, err := am.IsLoggedIn(ctx, page)
-	if err != nil {
-		return fmt.Errorf("failed to check login state: %w", err)
-	}
+			// Check if login was successful
+			loggedIn, err := am.IsLoggedIn(ctx, page)
+			if err != nil {
+				return errors.NewError(errors.ErrorTypeTransient, "login", 
+					"failed to check login state", err)
+			}
 
-	if !loggedIn {
-		// Check for security challenges
-		hasChallenge, err := am.detectChallenge(ctx, page)
-		if err != nil {
-			return fmt.Errorf("failed to detect security challenge: %w", err)
-		}
-		if hasChallenge {
-			return fmt.Errorf("security challenge detected (captcha or 2FA required)")
-		}
-		return fmt.Errorf("login failed - credentials may be incorrect")
-	}
+			if !loggedIn {
+				// Check for security challenges
+				hasChallenge, err := am.detectChallenge(ctx, page)
+				if err != nil {
+					return errors.NewError(errors.ErrorTypeTransient, "login", 
+						"failed to detect security challenge", err)
+				}
+				if hasChallenge {
+					return errors.NewError(errors.ErrorTypePermanent, "login", 
+						"security challenge detected (captcha or 2FA required)", nil)
+				}
+				return errors.NewError(errors.ErrorTypePermanent, "login", 
+					"login failed - credentials may be incorrect", nil)
+			}
 
-	return nil
+			return nil
+		})
+	})
 }
 
 // IsLoggedIn detects login state via DOM analysis

@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"github.com/go-rod/rod"
+	
+	"linkedin-automation-framework/internal/errors"
 )
 
 // ConnectionManager interface for LinkedIn connection requests
@@ -40,9 +42,11 @@ type ConnectionRequest struct {
 
 // ConnectManager implements ConnectionManager interface
 type ConnectManager struct {
-	storage     StorageInterface
-	rateLimiter RateLimiterInterface
-	stealth     StealthInterface
+	storage      StorageInterface
+	rateLimiter  RateLimiterInterface
+	stealth      StealthInterface
+	errorHandler *errors.RodErrorHandler
+	recovery     *errors.GracefulErrorRecovery
 }
 
 // StorageInterface defines storage operations needed by connect
@@ -67,14 +71,20 @@ type StealthInterface interface {
 // NewConnectManager creates a new connection manager
 func NewConnectManager(storage StorageInterface, rateLimiter RateLimiterInterface, stealth StealthInterface) *ConnectManager {
 	return &ConnectManager{
-		storage:     storage,
-		rateLimiter: rateLimiter,
-		stealth:     stealth,
+		storage:      storage,
+		rateLimiter:  rateLimiter,
+		stealth:      stealth,
+		errorHandler: errors.NewRodErrorHandler(30 * time.Second),
+		recovery:     errors.NewGracefulErrorRecovery(nil),
 	}
 }
 
 // NavigateToProfile navigates to a LinkedIn profile page using Rod methods
 func (cm *ConnectManager) NavigateToProfile(ctx context.Context, page *rod.Page, profileURL string) error {
+	if page == nil {
+		return fmt.Errorf("page cannot be nil")
+	}
+
 	if profileURL == "" {
 		return fmt.Errorf("profile URL cannot be empty")
 	}
@@ -109,6 +119,10 @@ func (cm *ConnectManager) NavigateToProfile(ctx context.Context, page *rod.Page,
 
 // DetectConnectButton detects Connect buttons using Rod selectors
 func (cm *ConnectManager) DetectConnectButton(ctx context.Context, page *rod.Page) (*rod.Element, error) {
+	if page == nil {
+		return nil, fmt.Errorf("page cannot be nil")
+	}
+
 	// Common LinkedIn Connect button selectors
 	selectors := []string{
 		`button[aria-label*="Connect"]`,
@@ -166,86 +180,98 @@ func (cm *ConnectManager) DetectConnectButton(ctx context.Context, page *rod.Pag
 
 // SendConnectionRequest sends a connection request with optional personalized note
 func (cm *ConnectManager) SendConnectionRequest(ctx context.Context, page *rod.Page, profile ProfileResult, note string) error {
-	// Check rate limiting first
-	if cm.rateLimiter != nil && !cm.rateLimiter.CanSendConnection() {
-		return fmt.Errorf("rate limit exceeded, cannot send connection request")
-	}
-
-	if page == nil {
-		return fmt.Errorf("page cannot be nil")
-	}
-
-	// Navigate to the profile
-	err := cm.NavigateToProfile(ctx, page, profile.URL)
-	if err != nil {
-		return fmt.Errorf("failed to navigate to profile: %w", err)
-	}
-
-	// Find the Connect button
-	connectButton, err := cm.DetectConnectButton(ctx, page)
-	if err != nil {
-		return fmt.Errorf("failed to detect Connect button: %w", err)
-	}
-
-	// Use stealth behavior to move to and click the button
-	if cm.stealth != nil {
-		err = cm.stealth.HumanMouseMove(ctx, page, connectButton)
-		if err != nil {
-			return fmt.Errorf("failed to move mouse to Connect button: %w", err)
+	return cm.recovery.SafeExecute("send_connection_request", func() error {
+		// Check rate limiting first
+		if cm.rateLimiter != nil && !cm.rateLimiter.CanSendConnection() {
+			return errors.NewError(errors.ErrorTypeRateLimit, "send_connection_request", 
+				"rate limit exceeded, cannot send connection request", nil)
 		}
 
-		// Add a small delay before clicking
-		err = cm.stealth.RandomDelay(500*time.Millisecond, 1500*time.Millisecond)
-		if err != nil {
-			return fmt.Errorf("failed to add pre-click delay: %w", err)
+		if page == nil {
+			return errors.NewError(errors.ErrorTypeConfiguration, "send_connection_request", 
+				"page cannot be nil", nil)
 		}
-	}
 
-	// Click the Connect button
-	err = connectButton.Click("left", 1)
-	if err != nil {
-		return fmt.Errorf("failed to click Connect button: %w", err)
-	}
+		retryConfig := errors.DefaultRetryConfig()
+		retryConfig.MaxAttempts = 2
+		retryConfig.InitialDelay = 3 * time.Second
+		
+		return errors.RetryWithBackoff(ctx, retryConfig, func(ctx context.Context, attempt int) error {
+			// Navigate to the profile
+			err := cm.NavigateToProfile(ctx, page, profile.URL)
+			if err != nil {
+				return err
+			}
 
-	// Wait for potential modal or note dialog
-	time.Sleep(2 * time.Second)
+			// Find the Connect button
+			connectButton, err := cm.DetectConnectButton(ctx, page)
+			if err != nil {
+				return err
+			}
 
-	// If a note is provided, try to find and fill the note field
-	if note != "" {
-		err = cm.handleConnectionNote(ctx, page, note)
-		if err != nil {
-			// Don't fail the entire operation if note handling fails
-			// Just log and continue
-			fmt.Printf("Warning: failed to add note to connection request: %v\n", err)
-		}
-	}
+			// Use stealth behavior to move to and click the button
+			if cm.stealth != nil {
+				err = cm.stealth.HumanMouseMove(ctx, page, connectButton)
+				if err != nil {
+					return errors.NewError(errors.ErrorTypeTransient, "send_connection_request", 
+						"failed to move mouse to Connect button", err)
+				}
 
-	// Look for and click the final Send button
-	err = cm.confirmConnectionRequest(ctx, page)
-	if err != nil {
-		return fmt.Errorf("failed to confirm connection request: %w", err)
-	}
+				// Add a small delay before clicking
+				err = cm.stealth.RandomDelay(500*time.Millisecond, 1500*time.Millisecond)
+				if err != nil {
+					return errors.NewError(errors.ErrorTypeTransient, "send_connection_request", 
+						"failed to add pre-click delay", err)
+				}
+			}
 
-	// Record the connection request
-	request := ConnectionRequest{
-		ProfileURL:  profile.URL,
-		ProfileName: profile.Name,
-		Note:        note,
-		SentAt:      time.Now(),
-		Status:      "pending",
-	}
+			// Click the Connect button
+			err = connectButton.Click("left", 1)
+			if err != nil {
+				return cm.errorHandler.HandleRodError("click_connect_button", err)
+			}
 
-	err = cm.TrackSentRequest(request)
-	if err != nil {
-		return fmt.Errorf("failed to track sent request: %w", err)
-	}
+			// Wait for potential modal or note dialog
+			time.Sleep(2 * time.Second)
 
-	// Record with rate limiter
-	if cm.rateLimiter != nil {
-		cm.rateLimiter.RecordConnection()
-	}
+			// If a note is provided, try to find and fill the note field
+			if note != "" {
+				err = cm.handleConnectionNote(ctx, page, note)
+				if err != nil {
+					// Don't fail the entire operation if note handling fails
+					// Just continue without the note
+				}
+			}
 
-	return nil
+			// Look for and click the final Send button
+			err = cm.confirmConnectionRequest(ctx, page)
+			if err != nil {
+				return err
+			}
+
+			// Record the connection request
+			request := ConnectionRequest{
+				ProfileURL:  profile.URL,
+				ProfileName: profile.Name,
+				Note:        note,
+				SentAt:      time.Now(),
+				Status:      "pending",
+			}
+
+			err = cm.TrackSentRequest(request)
+			if err != nil {
+				return errors.NewError(errors.ErrorTypeTransient, "send_connection_request", 
+					"failed to track sent request", err)
+			}
+
+			// Record with rate limiter
+			if cm.rateLimiter != nil {
+				cm.rateLimiter.RecordConnection()
+			}
+
+			return nil
+		})
+	})
 }
 
 // handleConnectionNote handles adding a personalized note to the connection request

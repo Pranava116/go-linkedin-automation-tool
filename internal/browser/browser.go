@@ -5,10 +5,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/go-rod/rod"
 	"github.com/go-rod/rod/lib/launcher"
 	"github.com/go-rod/rod/lib/proto"
+	
+	"linkedin-automation-framework/internal/errors"
 )
 
 // BrowserManager interface for Rod browser lifecycle management
@@ -24,8 +27,10 @@ type BrowserManager interface {
 
 // Manager implements BrowserManager interface
 type Manager struct {
-	browser *rod.Browser
-	config  BrowserConfig
+	browser      *rod.Browser
+	config       BrowserConfig
+	errorHandler *errors.RodErrorHandler
+	recovery     *errors.GracefulErrorRecovery
 }
 
 // BrowserConfig contains browser configuration options
@@ -41,58 +46,67 @@ type BrowserConfig struct {
 // NewManager creates a new browser manager instance
 func NewManager(config BrowserConfig) *Manager {
 	return &Manager{
-		config: config,
+		config:       config,
+		errorHandler: errors.NewRodErrorHandler(30 * time.Second),
+		recovery:     errors.NewGracefulErrorRecovery(nil),
 	}
 }
 
 // Implement BrowserManager interface methods
 func (m *Manager) Initialize(ctx context.Context) error {
-	// Create launcher with configuration
-	l := launcher.New()
-	
-	// Configure headless mode
-	if m.config.Headless {
-		l = l.Headless(true)
-	} else {
-		l = l.Headless(false)
-	}
-	
-	// Apply common browser flags using available methods
-	for _, flag := range m.config.Flags {
-		switch flag {
-		case "--no-sandbox":
-			l = l.NoSandbox(true)
-		case "--disable-dev-shm-usage":
-			// This flag will be handled by Rod automatically in most cases
-		case "--disable-web-security":
-			// This flag will be handled by Rod automatically in most cases
-		}
-	}
-	
-	// User agent and viewport will be set later via page API
-	
-	// Launch browser
-	url, err := l.Launch()
-	if err != nil {
-		return fmt.Errorf("failed to launch browser: %w", err)
-	}
-	
-	// Connect to browser
-	browser := rod.New().ControlURL(url)
-	err = browser.Connect()
-	if err != nil {
-		return fmt.Errorf("failed to connect to browser: %w", err)
-	}
-	
-	m.browser = browser
-	
-	// Configure fingerprint settings
-	err = m.configureFingerprint(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to configure fingerprint: %w", err)
-	}
-	
-	return nil
+	return m.recovery.SafeExecute("browser_initialize", func() error {
+		retryConfig := errors.DefaultRetryConfig()
+		retryConfig.MaxAttempts = 3
+		retryConfig.InitialDelay = 2 * time.Second
+		
+		return errors.RetryWithBackoff(ctx, retryConfig, func(ctx context.Context, attempt int) error {
+			// Create launcher with configuration
+			l := launcher.New()
+			
+			// Configure headless mode
+			if m.config.Headless {
+				l = l.Headless(true)
+			} else {
+				l = l.Headless(false)
+			}
+			
+			// Apply common browser flags using available methods
+			for _, flag := range m.config.Flags {
+				switch flag {
+				case "--no-sandbox":
+					l = l.NoSandbox(true)
+				case "--disable-dev-shm-usage":
+					// This flag will be handled by Rod automatically in most cases
+				case "--disable-web-security":
+					// This flag will be handled by Rod automatically in most cases
+				}
+			}
+			
+			// Launch browser
+			url, err := l.Launch()
+			if err != nil {
+				return m.errorHandler.HandleRodError("browser_launch", err)
+			}
+			
+			// Connect to browser
+			browser := rod.New().ControlURL(url)
+			err = browser.Connect()
+			if err != nil {
+				return m.errorHandler.HandleRodError("browser_connect", err)
+			}
+			
+			m.browser = browser
+			
+			// Configure fingerprint settings
+			err = m.configureFingerprint(ctx)
+			if err != nil {
+				return errors.NewError(errors.ErrorTypeTransient, "browser_initialize", 
+					"failed to configure fingerprint", err)
+			}
+			
+			return nil
+		})
+	})
 }
 
 func (m *Manager) Browser() *rod.Browser {
@@ -100,27 +114,34 @@ func (m *Manager) Browser() *rod.Browser {
 }
 
 func (m *Manager) NewPage() (*rod.Page, error) {
-	if m.browser == nil {
-		return nil, fmt.Errorf("browser not initialized")
-	}
-	
-	page, err := m.browser.Page(proto.TargetCreateTarget{})
-	if err != nil {
-		return nil, fmt.Errorf("failed to create page: %w", err)
-	}
-	
-	// Set viewport if configured
-	if m.config.ViewportW > 0 && m.config.ViewportH > 0 {
-		err = page.SetViewport(&proto.EmulationSetDeviceMetricsOverride{
-			Width:  m.config.ViewportW,
-			Height: m.config.ViewportH,
-		})
-		if err != nil {
-			return nil, fmt.Errorf("failed to set viewport: %w", err)
+	var page *rod.Page
+	err := m.recovery.SafeExecute("new_page", func() error {
+		if m.browser == nil {
+			return errors.NewError(errors.ErrorTypeConfiguration, "new_page", 
+				"browser not initialized", nil)
 		}
-	}
+		
+		var err error
+		page, err = m.browser.Page(proto.TargetCreateTarget{})
+		if err != nil {
+			return m.errorHandler.HandleRodError("create_page", err)
+		}
+		
+		// Set viewport if configured
+		if m.config.ViewportW > 0 && m.config.ViewportH > 0 {
+			err = page.SetViewport(&proto.EmulationSetDeviceMetricsOverride{
+				Width:  m.config.ViewportW,
+				Height: m.config.ViewportH,
+			})
+			if err != nil {
+				return m.errorHandler.HandleRodError("set_viewport", err)
+			}
+		}
+		
+		return nil
+	})
 	
-	return page, nil
+	return page, err
 }
 
 func (m *Manager) NewIncognitoPage() (*rod.Page, error) {
@@ -246,26 +267,28 @@ func (m *Manager) LoadCookies(path string) error {
 }
 
 func (m *Manager) Close() error {
-	if m.browser == nil {
-		return nil // Already closed or never initialized
-	}
-	
-	// Close all pages first
-	pages, err := m.browser.Pages()
-	if err == nil {
-		for _, page := range pages {
-			_ = page.Close() // Ignore individual page close errors
+	return m.recovery.SafeExecute("browser_close", func() error {
+		if m.browser == nil {
+			return nil // Already closed or never initialized
 		}
-	}
-	
-	// Close browser
-	err = m.browser.Close()
-	if err != nil {
-		return fmt.Errorf("failed to close browser: %w", err)
-	}
-	
-	m.browser = nil
-	return nil
+		
+		// Close all pages first
+		pages, err := m.browser.Pages()
+		if err == nil {
+			for _, page := range pages {
+				_ = page.Close() // Ignore individual page close errors
+			}
+		}
+		
+		// Close browser
+		err = m.browser.Close()
+		if err != nil {
+			return m.errorHandler.HandleRodError("browser_close", err)
+		}
+		
+		m.browser = nil
+		return nil
+	})
 }
 
 // configureFingerprint applies fingerprint settings to mask browser automation
