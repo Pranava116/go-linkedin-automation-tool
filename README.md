@@ -6,6 +6,9 @@ A technical proof-of-concept LinkedIn automation framework built in Go using the
 
 **This project is strictly for educational and technical evaluation purposes only.**
 
+**The Link to the video is given below:**
+**LINK: https://drive.google.com/file/d/1l2XAvb3uzUcdpZMD7iNFmI3Uxl3Jk0Sa/view?usp=sharing**
+
 ### Legal Compliance
 - This framework is designed to demonstrate browser automation concepts and Go programming patterns
 - Users are **solely responsible** for complying with LinkedIn's Terms of Service and all applicable laws
