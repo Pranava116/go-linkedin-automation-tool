@@ -155,6 +155,10 @@ linkedin-automation-framework/
    ```bash
    ./linkedin-automation-framework --mode=test --action=config-test
    ```
+4. **Test manual-login:**
+   ```bash
+   ./linkedin-automation-framework --mode=manual-login --headless=false
+   ```
 
 ### Configuration Setup
 
